@@ -1,0 +1,24 @@
+{
+  "name": "testmqttclient",
+  "version": "1.0.0",
+  "description": "Test MQTT Client using AWS-IoT",
+  "main": "MqttClient.js",
+  "keywords": [
+    "aws",
+    "iot",
+    "mqtt"
+  ],
+  "author": "GitHub",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/aws-iot-device-sdk": "^2.1.1",
+    "@types/bluebird": "^3.5.25",
+    "@types/lodash": "^4.14.120",
+    "async": "^2.6.1"
+  },
+  "dependencies": {
+    "aws-iot-device-sdk": "^2.2.1",
+    "bluebird": "^3.5.1",
+    "lodash": "^4.17.10"
+  }
+}
