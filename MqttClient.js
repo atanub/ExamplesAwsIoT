@@ -2,8 +2,9 @@
 // Core Packages
 'use strict'
 const _ = require('lodash')
+const Rx = require('rx')
 
-const envVars = ['AWS_IOT_REGION', 'AWS_IOT_HOST', 'NODE_ENV',]
+const envVars = ['AWS_IOT_REGION', 'AWS_IOT_HOST', 'NODE_ENV', 'DEVICE_MANAGER_THING_NAME', 'TARGET_DEVICE']
 envVars.forEach(ev => {
   if (_.isUndefined(process.env[ev])) {
     throw new Error(
@@ -27,7 +28,7 @@ class MqttClient {
    * Constructor
    *
    * @param {string} awsIoTEndPoint - AWS IoT End Point URL
-   * @param {string} awsRegion - AWS Region e.g. 'us-east-1'
+   * @param {string} awsRegion - AWS Region e.g. 'us-east-2'
    */
   constructor(certFolder, awsIoTEndPoint, awsRegion, env) {
     //Subscribe for all 
@@ -81,12 +82,13 @@ class MqttClient {
     this._isSubscriptionToTopicsDone = true;
 
     // ==== Test - update shadow
-    const thingName = this._thingName //'Device_1000'
-    const attributeName = 'TEST_ATTRIBUTE';
-    const newState = 100
-    console.log(`Setting ${attributeName} state of thing:${thingName} to mode:${newState}...`);
-    this.updateDeviceShadow(thingName, attributeName, newState);
+    const thingName = process.env.TARGET_DEVICE
     this.getDeviceShadow(thingName);
+    // const attributeName = 'TEST_ATTRIBUTE';
+    // const newState = 1000
+
+    // console.log(`Setting ${attributeName} state of thing:${thingName} to mode:${newState}...`);
+    // this.updateDeviceShadow(thingName, attributeName, newState);
   }
 
   /**
@@ -101,11 +103,10 @@ class MqttClient {
    */
   onMqttMessage(topic, payload) {
     const o = JSON.parse(payload.toString());
-    console.log(`Received messa
-    ge on topic:${topic}, payload:`, o);
+    console.log(`Received message on topic:${topic}`);
+    // console.log(`Received message on topic:${topic}, payload:`, o);
   }
   // #endregion
-
   /**
 	 * Publishes request to update a given shadow attribute for a thing
 	 *
@@ -153,12 +154,28 @@ class MqttClient {
   getDeviceShadow(thingName) {
     console.log(`Extracting shadow of thing: '${thingName}'...`);
     const topic = `$aws/things/${thingName}/shadow/get`
+    const topicAccepted = `${topic}/accepted`
+    const topicRejected = `${topic}/rejected`
     const self = this;
+    //set timeout 2000ms
+    const notifier = Rx.Observable.timer(500)
+
+    const observable = Rx.Observable.fromEvent(this._device, 'message', (t, p) => [t, !_.isUndefined(p) ? p.toString() : ""])
+    observable
+      .takeUntil(notifier)
+      .filter(oo => oo[0] === topicAccepted || oo[0] === topicRejected)
+      .map(oo => [oo[0], oo[1] = JSON.parse(oo[1])])
+      .do(oo => console.log(`Rx.Observable.fromEvent: `, oo[0], oo[1]))
+      .catch(error => Rx.Observable.of(error))
+      .finally(() => console.log(`getDeviceShadow completed.`))
+      .subscribe()
+    const promise1 = observable.toPromise();
+
     const publish = Promise.promisify(self._device.publish, {
       context: self._device
     });
     const o = {}
-    return publish(topic, JSON.stringify(o), {}).bind(this).then(function () {
+    const promise2 = publish(topic, JSON.stringify(o), {}).bind(this).then(function () {
       console.log(`Successfully published message to topic:${topic}.`);
       return Promise.resolve(true);
     }).catch(function (e) {
@@ -166,8 +183,8 @@ class MqttClient {
       console.log(msg, e);
       return Promise.reject(msg);
     });
+    return Promise.all([promise1, promise2]);
   }
-
 
   /**
    * Initializes mqtt client 
@@ -187,9 +204,10 @@ class MqttClient {
     )
   }
 }
+
 // #region === for test =======================================
 const unitTest = function () {
-  const thingNames = ['device_00']; //'device_00', 'device_01'
+  const thingNames = [process.env.DEVICE_MANAGER_THING_NAME]; //'device_00', 'device_01'
   const devices = [];
   thingNames.forEach(tn => {
     const mc = new MqttClient(

@@ -8,12 +8,14 @@
             "type": "node",
             "runtimeVersion": "6.10.3",
             "request": "launch",
-            "name": "mqttClient",
+            "name": "mqtt-client-local",
             "program": "${workspaceFolder}/MqttClient.js",
             "env": {
                 "AWS_IOT_HOST": "127.0.0.1",
-                "AWS_IOT_REGION": "us-west-1",
-                "NODE_ENV": "uat"
+                "AWS_IOT_REGION": "us-east-1",
+                "NODE_ENV": "development",
+                "DEVICE_MANAGER_THING_NAME": "device_00",
+                "TARGET_DEVICE": "device_02"
             },
             "cwd": "${workspaceFolder}",
             "args": []
